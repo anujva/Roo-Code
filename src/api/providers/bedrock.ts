@@ -1,16 +1,17 @@
 import {
 	BedrockRuntimeClient,
-	ConverseStreamCommand,
-	ConverseCommand,
 	BedrockRuntimeClientConfig,
+	ConverseCommand,
+	ConverseStreamCommand,
 } from "@aws-sdk/client-bedrock-runtime"
 import { fromIni } from "@aws-sdk/credential-providers"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiHandler, SingleCompletionHandler } from "../"
-import { ApiHandlerOptions, BedrockModelId, ModelInfo, bedrockDefaultModelId, bedrockModels } from "../../shared/api"
+import { ApiHandlerOptions, bedrockDefaultModelId, BedrockModelId, bedrockModels, ModelInfo } from "../../shared/api"
 import { ApiStream } from "../transform/stream"
-import { convertToBedrockConverseMessages, convertToAnthropicMessage } from "../transform/bedrock-converse-format"
+import { convertToAnthropicMessage, convertToBedrockConverseMessages } from "../transform/bedrock-converse-format"
 
+const CLAUDE_SONNET_INFERENCE_PROFILE_ARN = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
 // Define types for stream events based on AWS SDK
 export interface StreamEvent {
 	messageStart?: {
@@ -77,21 +78,25 @@ export class AwsBedrockHandler implements ApiHandler, SingleCompletionHandler {
 
 		// Handle cross-region inference
 		let modelId: string
-		if (this.options.awsUseCrossRegionInference) {
-			let regionPrefix = (this.options.awsRegion || "").slice(0, 3)
-			switch (regionPrefix) {
-				case "us-":
-					modelId = `us.${modelConfig.id}`
-					break
-				case "eu-":
-					modelId = `eu.${modelConfig.id}`
-					break
-				default:
-					modelId = modelConfig.id
-					break
-			}
+		if (this.getModel().id === "anthropic.claude-3-5-sonnet-20241022-v2:0") {
+			modelId = CLAUDE_SONNET_INFERENCE_PROFILE_ARN
 		} else {
-			modelId = modelConfig.id
+			if (this.options.awsUseCrossRegionInference) {
+				let regionPrefix = (this.options.awsRegion || "").slice(0, 3)
+				switch (regionPrefix) {
+					case "us-":
+						modelId = `us.${modelConfig.id}`
+						break
+					case "eu-":
+						modelId = `eu.${modelConfig.id}`
+						break
+					default:
+						modelId = modelConfig.id
+						break
+				}
+			} else {
+				modelId = modelConfig.id
+			}
 		}
 
 		// Convert messages to Bedrock format

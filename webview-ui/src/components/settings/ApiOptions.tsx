@@ -139,20 +139,8 @@ const ApiOptions = ({ apiErrorMessage, modelIdErrorMessage }: ApiOptionsProps) =
 					}}
 					style={{ minWidth: 130, position: "relative", zIndex: OPENROUTER_MODEL_PICKER_Z_INDEX + 1 }}
 					options={[
-						{ value: "openrouter", label: "OpenRouter" },
-						{ value: "anthropic", label: "Anthropic" },
-						{ value: "gemini", label: "Google Gemini" },
-						{ value: "deepseek", label: "DeepSeek" },
-						{ value: "openai-native", label: "OpenAI" },
-						{ value: "openai", label: "OpenAI Compatible" },
-						{ value: "vertex", label: "GCP Vertex AI" },
 						{ value: "bedrock", label: "AWS Bedrock" },
-						{ value: "glama", label: "Glama" },
-						{ value: "vscode-lm", label: "VS Code LM API" },
-						{ value: "mistral", label: "Mistral" },
-						{ value: "lmstudio", label: "LM Studio" },
 						{ value: "ollama", label: "Ollama" },
-						{ value: "unbound", label: "Unbound" },
 					]}
 				/>
 			</div>
@@ -1517,7 +1505,7 @@ const ModelInfoSupportsItem = ({
 )
 
 export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
-	const provider = apiConfiguration?.apiProvider || "anthropic"
+	const provider = apiConfiguration?.apiProvider || "bedrock"
 	const modelId = apiConfiguration?.apiModelId
 
 	const getProviderData = (models: Record<string, ModelInfo>, defaultId: string) => {
