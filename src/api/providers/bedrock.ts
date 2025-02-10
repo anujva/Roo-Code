@@ -11,6 +11,7 @@ import { ApiHandlerOptions, bedrockDefaultModelId, BedrockModelId, bedrockModels
 import { ApiStream } from "../transform/stream"
 import { convertToAnthropicMessage, convertToBedrockConverseMessages } from "../transform/bedrock-converse-format"
 
+const BEDROCK_DEFAULT_TEMPERATURE = 0.3
 const CLAUDE_SONNET_INFERENCE_PROFILE_ARN = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
 // Define types for stream events based on AWS SDK
 export interface StreamEvent {
@@ -109,7 +110,7 @@ export class AwsBedrockHandler implements ApiHandler, SingleCompletionHandler {
 			system: [{ text: systemPrompt }],
 			inferenceConfig: {
 				maxTokens: modelConfig.info.maxTokens || 5000,
-				temperature: 0.3,
+				temperature: this.options.modelTemperature ?? BEDROCK_DEFAULT_TEMPERATURE,
 				topP: 0.1,
 				...(this.options.awsUsePromptCache
 					? {
@@ -267,7 +268,7 @@ export class AwsBedrockHandler implements ApiHandler, SingleCompletionHandler {
 				]),
 				inferenceConfig: {
 					maxTokens: modelConfig.info.maxTokens || 5000,
-					temperature: 0.3,
+					temperature: this.options.modelTemperature ?? BEDROCK_DEFAULT_TEMPERATURE,
 					topP: 0.1,
 				},
 			}

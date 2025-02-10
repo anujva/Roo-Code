@@ -30,6 +30,7 @@ export interface ExtensionMessage {
 		| "glamaModels"
 		| "openRouterModels"
 		| "openAiModels"
+		| "requestyModels"
 		| "mcpServers"
 		| "enhancedPrompt"
 		| "commitSearchResults"
@@ -42,6 +43,9 @@ export interface ExtensionMessage {
 		| "autoApprovalEnabled"
 		| "updateCustomMode"
 		| "deleteCustomMode"
+		| "unboundModels"
+		| "refreshUnboundModels"
+		| "currentCheckpointUpdated"
 	text?: string
 	action?:
 		| "chatButtonClicked"
@@ -64,8 +68,10 @@ export interface ExtensionMessage {
 	}>
 	partialMessage?: ClineMessage
 	glamaModels?: Record<string, ModelInfo>
+	requestyModels?: Record<string, ModelInfo>
 	openRouterModels?: Record<string, ModelInfo>
 	openAiModels?: string[]
+	unboundModels?: Record<string, ModelInfo>
 	mcpServers?: McpServer[]
 	commits?: GitCommit[]
 	listApiConfig?: ApiConfigMeta[]
@@ -105,6 +111,7 @@ export interface ExtensionState {
 	soundEnabled?: boolean
 	soundVolume?: number
 	diffEnabled?: boolean
+	checkpointsEnabled: boolean
 	browserViewportSize?: string
 	screenshotQuality?: number
 	fuzzyMatchThreshold?: number
@@ -131,6 +138,7 @@ export interface ClineMessage {
 	images?: string[]
 	partial?: boolean
 	reasoning?: string
+	conversationHistoryIndex?: number
 }
 
 export type ClineAsk =
@@ -151,13 +159,14 @@ export type ClineSay =
 	| "error"
 	| "api_req_started"
 	| "api_req_finished"
+	| "api_req_retried"
+	| "api_req_retry_delayed"
+	| "api_req_deleted"
 	| "text"
 	| "reasoning"
 	| "completion_result"
 	| "user_feedback"
 	| "user_feedback_diff"
-	| "api_req_retried"
-	| "api_req_retry_delayed"
 	| "command_output"
 	| "tool"
 	| "shell_integration_warning"
@@ -168,6 +177,7 @@ export type ClineSay =
 	| "mcp_server_response"
 	| "new_task_started"
 	| "new_task"
+	| "checkpoint_saved"
 
 export interface ClineSayTool {
 	tool:

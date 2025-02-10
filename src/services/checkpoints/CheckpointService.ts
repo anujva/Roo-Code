@@ -2,18 +2,7 @@ import fs from "fs/promises"
 import { existsSync } from "fs"
 import path from "path"
 
-import debug from "debug"
 import simpleGit, { SimpleGit, CleanOptions } from "simple-git"
-
-if (process.env.NODE_ENV !== "test") {
-	debug.enable("simple-git")
-}
-
-export interface Checkpoint {
-	hash: string
-	message: string
-	timestamp?: Date
-}
 
 export type CheckpointServiceOptions = {
 	taskId: string
@@ -60,6 +49,19 @@ export type CheckpointServiceOptions = {
  */
 
 export class CheckpointService {
+	private static readonly USER_NAME = "Roo Code"
+	private static readonly USER_EMAIL = "support@roocode.com"
+
+	private _currentCheckpoint?: string
+
+	public get currentCheckpoint() {
+		return this._currentCheckpoint
+	}
+
+	private set currentCheckpoint(value: string | undefined) {
+		this._currentCheckpoint = value
+	}
+
 	constructor(
 		public readonly taskId: string,
 		private readonly git: SimpleGit,
@@ -217,6 +219,8 @@ export class CheckpointService {
 				await this.popStash()
 			}
 
+			this.currentCheckpoint = commit.commit
+
 			return commit
 		} catch (err) {
 			this.log(`[saveCheckpoint] Failed to save checkpoint: ${err instanceof Error ? err.message : String(err)}`)
@@ -237,18 +241,15 @@ export class CheckpointService {
 		await this.ensureBranch(this.mainBranch)
 		await this.git.clean([CleanOptions.FORCE, CleanOptions.RECURSIVE])
 		await this.git.raw(["restore", "--source", commitHash, "--worktree", "--", "."])
+		this.currentCheckpoint = commitHash
 	}
 
 	public static async create({ taskId, git, baseDir, log = console.log }: CheckpointServiceOptions) {
-		git =
-			git ||
-			simpleGit({
-				baseDir,
-				binary: "git",
-				maxConcurrentProcesses: 1,
-				config: [],
-				trimmed: true,
-			})
+		if (process.platform === "win32") {
+			throw new Error("Checkpoints are not supported on Windows.")
+		}
+
+		git = git || simpleGit({ baseDir })
 
 		const version = await git.version()
 
@@ -270,6 +271,7 @@ export class CheckpointService {
 		log(
 			`[CheckpointService] taskId = ${taskId}, baseDir = ${baseDir}, currentBranch = ${currentBranch}, currentSha = ${currentSha}, hiddenBranch = ${hiddenBranch}`,
 		)
+
 		return new CheckpointService(taskId, git, baseDir, currentBranch, currentSha, hiddenBranch, log)
 	}
 
@@ -281,8 +283,34 @@ export class CheckpointService {
 			log(`[initRepo] Initialized new Git repository at ${baseDir}`)
 		}
 
-		await git.addConfig("user.name", "Roo Code")
-		await git.addConfig("user.email", "support@roocode.com")
+		const globalUserName = await git.getConfig("user.name", "global")
+		const localUserName = await git.getConfig("user.name", "local")
+		const userName = localUserName.value || globalUserName.value
+
+		const globalUserEmail = await git.getConfig("user.email", "global")
+		const localUserEmail = await git.getConfig("user.email", "local")
+		const userEmail = localUserEmail.value || globalUserEmail.value
+
+		// Prior versions of this service indiscriminately set the local user
+		// config, and it should not override the global config. To address
+		// this we remove the local user config if it matches the default
+		// user name and email and there's a global config.
+		if (globalUserName.value && localUserName.value === CheckpointService.USER_NAME) {
+			await git.raw(["config", "--unset", "--local", "user.name"])
+		}
+
+		if (globalUserEmail.value && localUserEmail.value === CheckpointService.USER_EMAIL) {
+			await git.raw(["config", "--unset", "--local", "user.email"])
+		}
+
+		// Only set user config if not already configured.
+		if (!userName) {
+			await git.addConfig("user.name", CheckpointService.USER_NAME)
+		}
+
+		if (!userEmail) {
+			await git.addConfig("user.email", CheckpointService.USER_EMAIL)
+		}
 
 		if (!isExistingRepo) {
 			// We need at least one file to commit, otherwise the initial
@@ -291,7 +319,7 @@ export class CheckpointService {
 			// the checkpoint (i.e. the `git restore` command doesn't work
 			// for empty commits).
 			await fs.writeFile(path.join(baseDir, ".gitkeep"), "")
-			await git.add(".")
+			await git.add(".gitkeep")
 			const commit = await git.commit("Initial commit")
 
 			if (!commit.commit) {
